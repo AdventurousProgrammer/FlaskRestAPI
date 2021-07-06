@@ -22,6 +22,11 @@ notes_put_args = reqparse.RequestParser()
 notes_put_args.add_argument("name", required=True, type=str, help="Please enter the name of the note")
 notes_put_args.add_argument("title", required=True, type=str, help="Please enter the title")
 notes_put_args.add_argument("body", required=True, type=str, help="Please enter note body")
+
+notes_update_args = reqparse.RequestParser()
+notes_update_args.add_argument("name", required=False, type=str, help="Please enter the name of the note")
+notes_update_args.add_argument("title", required=False, type=str, help="Please enter the title")
+notes_update_args.add_argument("body", required=False, type=str, help="Please enter note body")
 # handle put, get, delete request
 def abort_exists(note_id):
     if note_id in notes:
@@ -53,7 +58,7 @@ class Notes(Resource):
     @marshal_with(resource_fields)
     def put(self, note_id):
         print(f'Entering put')
-        args = notes_put_args.parse_args()
+        args = notes_put_args.parse_args() # getting form data
         print(f'Args = {args}')
         '''
         good way to check if note exists
@@ -74,6 +79,21 @@ class Notes(Resource):
         del notes[note_id]
         return '', 204 # string is not json serializable
 
+    @marshal_with(resource_fields)
+    def patch(self, note_id):
+        args = notes_update_args.parse_args()
+        result = NotesModel.query.filter_by(id=note_id).first()
+        if not result:
+            abort(404, id='Note id is not found, cannot update')
+        if args['name']:
+            result.name = args['name']
+        if args['title']:
+            result.title = args['title']
+        if args['body']:
+            result.body = args['body']
+        #db.session.add(result)
+        db.session.commit()
+        return result
 
 api.add_resource(Notes, "/note/<int:note_id>") # access point
 if __name__ == '__main__':
