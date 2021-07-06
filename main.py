@@ -1,5 +1,5 @@
 from flask import Flask
-from flask_restful import Api, Resource, reqparse, abort
+from flask_restful import Api, Resource, reqparse, abort, fields, marshal_with
 from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
@@ -31,17 +31,43 @@ def abort_dne(note_id):
     if note_id not in notes:
         abort(404, message='Could not find note')
 
+# serialize fields into JSON format
+resource_fields = {
+    'id': fields.Integer,
+    'name': fields.String,
+    'title': fields.String,
+    'body': fields.String
+}
 
 class Notes(Resource):
+    @marshal_with(resource_fields)
     def get(self, note_id):
-        abort_dne(note_id)
-        return notes[note_id]             #notes.get(note_id, "Note Does Not Exist")
+        print(f'Entering get')
+        result = NotesModel.query.filter_by(id=note_id).first() # get one db
+        if not result:
+            abort(404, message="Could not find note with that id...")
+        # instance that has that id
+        # how to put json format
+        return result
 
+    @marshal_with(resource_fields)
     def put(self, note_id):
-        abort_exists(note_id)
+        print(f'Entering put')
         args = notes_put_args.parse_args()
-        notes[note_id] = args
-        return notes.get(note_id), 201
+        print(f'Args = {args}')
+        '''
+        good way to check if note exists
+        to avoid crashing program
+        '''
+        result = NotesModel.query.filter_by(id=note_id).first()
+        print(type(result))
+        if result:
+            abort(409, 'Note id is already taken...')
+
+        note = NotesModel(id=note_id, name=args['name'], title=args['title'], body=args['body'])
+        db.session.add(note)
+        db.session.commit() # make permanent additions to database
+        return note, 201 # turn note into a dictionary, using
 
     def delete(self, note_id):
         abort_dne(note_id)
